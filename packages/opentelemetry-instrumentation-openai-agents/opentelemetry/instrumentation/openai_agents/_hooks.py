@@ -7,6 +7,7 @@ from collections import OrderedDict
 from opentelemetry.trace import Tracer, Status, StatusCode, SpanKind, get_current_span, set_span_in_context
 from opentelemetry import context
 from opentelemetry.semconv_ai import SpanAttributes, TraceloopSpanKindValues
+from opentelemetry.semconv_ai.context_utils import safe_detach_context
 from opentelemetry.semconv._incubating.attributes.gen_ai_attributes import GEN_AI_COMPLETION
 from agents.tracing.processors import TracingProcessor
 from .utils import dont_throw
@@ -501,7 +502,7 @@ class OpenTelemetryTracingProcessor(TracingProcessor):
             otel_span.end()
             del self._otel_spans[span]
             if span in self._span_contexts:
-                context.detach(self._span_contexts[span])
+                safe_detach_context(self._span_contexts[span])
                 del self._span_contexts[span]
 
     def _find_agent_span(self, agent_name: str):

@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from opentelemetry import context
 from opentelemetry.semconv_ai import SpanAttributes
+from opentelemetry.semconv_ai.context_utils import safe_detach_context
 from opentelemetry.trace import Span, set_span_in_context
 from pydantic import BaseModel
 from typing import Optional
@@ -80,5 +81,5 @@ def track_llm_call(vendor: str, type: str):
         try:
             yield LLMSpan(span)
         finally:
-            context.detach(token)
+            safe_detach_context(token)
             span.end()

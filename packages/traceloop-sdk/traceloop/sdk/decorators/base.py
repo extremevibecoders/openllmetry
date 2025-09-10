@@ -18,6 +18,7 @@ from opentelemetry import trace
 from opentelemetry.trace.status import Status, StatusCode
 from opentelemetry import context as context_api
 from opentelemetry.semconv_ai import SpanAttributes, TraceloopSpanKindValues
+from opentelemetry.semconv_ai.context_utils import safe_detach_context
 
 from traceloop.sdk.telemetry import Telemetry
 from traceloop.sdk.tracing import get_tracer, set_workflow_name
@@ -121,7 +122,7 @@ async def _ahandle_generator(span, ctx_token, res):
         raise
     finally:
         span.end()
-        context_api.detach(ctx_token)
+        safe_detach_context(ctx_token)
 
 
 def _should_send_prompts():
@@ -200,7 +201,7 @@ def _handle_span_output(span, res, cls=None):
 def _cleanup_span(span, ctx_token):
     """End the span process and detach the context token"""
     span.end()
-    context_api.detach(ctx_token)
+    safe_detach_context(ctx_token)
 
 
 def entity_method(

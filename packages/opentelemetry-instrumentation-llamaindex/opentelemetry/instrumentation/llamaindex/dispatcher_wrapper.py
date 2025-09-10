@@ -32,6 +32,7 @@ from opentelemetry.instrumentation.llamaindex.event_emitter import (
     emit_chat_response_events,
     emit_rerank_message_event,
 )
+from opentelemetry.semconv_ai.context_utils import safe_detach_context
 from opentelemetry.instrumentation.llamaindex.span_utils import (
     set_embedding,
     set_llm_chat_request,
@@ -108,7 +109,7 @@ class SpanHolder:
         if self.otel_span:
             self.otel_span.end()
         if self.token and should_detach_context:
-            context_api.detach(self.token)
+            safe_detach_context(self.token)
 
     @singledispatchmethod
     def update_span_for_event(self, event: BaseEvent):
