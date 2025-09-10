@@ -9,6 +9,7 @@ from http import HTTPStatus
 
 from opentelemetry import context, propagate
 from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
+from opentelemetry.semconv_ai.context_utils import safe_detach_context
 from opentelemetry.instrumentation.utils import unwrap
 from opentelemetry.trace import get_tracer, Tracer
 from wrapt import ObjectProxy, register_post_import_hook, wrap_function_wrapper
@@ -315,7 +316,7 @@ class InstrumentedStreamReader(ObjectProxy):  # type: ignore
                         yield item
                         continue
                     finally:
-                        context.detach(restore)
+                        safe_detach_context(restore)
             yield item
 
 
@@ -433,4 +434,4 @@ class ContextAttachingStreamReader(ObjectProxy):  # type: ignore
             try:
                 yield item_with_context.item
             finally:
-                context.detach(restore)
+                safe_detach_context(restore)
