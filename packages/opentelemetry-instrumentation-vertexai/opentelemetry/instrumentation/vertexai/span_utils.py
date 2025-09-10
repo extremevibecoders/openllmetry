@@ -120,8 +120,8 @@ async def _process_vertexai_argument(argument, span):
         return [{"type": "text", "text": argument}]
 
     elif isinstance(argument, list):
-        # List of mixed content (text strings and Part objects) - deep copy and process
-        content_list = copy.deepcopy(argument)
+        # List of mixed content (text strings and Part objects) - shallow copy and process
+        content_list = argument.copy()
         processed_items = []
 
         for item_index, content_item in enumerate(content_list):
@@ -165,8 +165,8 @@ def _process_vertexai_argument_sync(argument, span):
         return [{"type": "text", "text": argument}]
 
     elif isinstance(argument, list):
-        # List of mixed content (text strings and Part objects) - deep copy and process
-        content_list = copy.deepcopy(argument)
+        # List of mixed content (text strings and Part objects) - shallow copy and process
+        content_list = argument.copy()
         processed_items = []
 
         for item_index, content_item in enumerate(content_list):

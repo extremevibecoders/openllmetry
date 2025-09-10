@@ -446,8 +446,9 @@ async def _set_prompts(span, messages):
 
         _set_span_attribute(span, f"{prefix}.role", msg.get("role"))
         if msg.get("content"):
-            content = copy.deepcopy(msg.get("content"))
+            content = msg.get("content")
             if isinstance(content, list):
+                content = content.copy()
                 content = [
                     (
                         await _process_image_item(
@@ -1013,7 +1014,7 @@ def _parse_tool_calls(
         tool_call_data = None
 
         if isinstance(tool_call, dict):
-            tool_call_data = copy.deepcopy(tool_call)
+            tool_call_data = tool_call.copy()
         elif _is_chat_message_function_tool_call(tool_call):
             tool_call_data = tool_call.model_dump()
         elif _is_function_call(tool_call):
