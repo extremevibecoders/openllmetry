@@ -242,8 +242,9 @@ class _OpenAITracingWrapper:
 
         # In legacy chains like LLMChain, suppressing model instrumentations
         # within create_llm_span doesn't work, so this should helps as a fallback
+        suppression_token = None
         try:
-            context_api.attach(
+            suppression_token = context_api.attach(
                 context_api.set_value(SUPPRESS_LANGUAGE_MODEL_INSTRUMENTATION_KEY, True)
             )
         except Exception:
@@ -251,4 +252,15 @@ class _OpenAITracingWrapper:
             # This is not critical for core functionality
             pass
 
-        return wrapped(*args, **kwargs)
+        try:
+            return wrapped(*args, **kwargs)
+        finally:
+            # Safely detach the suppression context if it was attached
+            if suppression_token is not None:
+                try:
+                    from opentelemetry.context import _RUNTIME_CONTEXT
+                    _RUNTIME_CONTEXT.detach(suppression_token)
+                except Exception:
+                    # Context detach can fail in async scenarios when tokens are created in different contexts
+                    # This is expected behavior and doesn't affect the correct functionality
+                    pass

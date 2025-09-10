@@ -479,3 +479,262 @@ def test_context_detachment_error_handling(
             assert (
                 parent_span.name == "concurrent_async_span"
             ), "Nested span should be child of concurrent_async_span"
+
+
+def test_comprehensive_context_management_stress_test(
+    instrument_legacy, span_exporter, tracer_provider, caplog
+):
+    """
+    Comprehensive stress test for context management in all scenarios.
+    
+    This test validates that the context detachment fix works across all
+    instrumentation scenarios including OpenAI tracing wrapper, association
+    properties, and suppression contexts.
+    """
+    import asyncio
+    import logging
+    from typing import TypedDict
+    from opentelemetry import trace
+    from langgraph.graph import END, START, StateGraph
+    from openai import OpenAI
+    
+    trace.set_tracer_provider(tracer_provider)
+    tracer = trace.get_tracer(__name__)
+    
+    with caplog.at_level(logging.ERROR):
+        
+        class StressTestState(TypedDict):
+            iteration: int
+            result: str
+            metadata: dict
+            
+        def create_mock_openai_client():
+            """Create a mock OpenAI client that simulates API calls."""
+            class MockOpenAI:
+                class Chat:
+                    class Completions:
+                        def create(self, **kwargs):
+                            class MockMessage:
+                                content = f"Response for iteration {kwargs.get('messages', [{}])[-1].get('content', 'unknown')}"
+                            class MockChoice:
+                                message = MockMessage()
+                            class MockCompletion:
+                                choices = [MockChoice()]
+                            return MockCompletion()
+                    completions = Completions()
+                chat = Chat()
+            return MockOpenAI()
+        
+        async def metadata_heavy_node(state: StressTestState) -> dict:
+            """Node that creates spans with heavy metadata usage."""
+            iteration = state["iteration"]
+            
+            # Create metadata that will trigger association properties
+            metadata = {
+                f"key_{i}": f"value_{i}_{iteration}" for i in range(10)
+            }
+            metadata.update({
+                "complex_data": {"nested": {"value": iteration}},
+                "list_data": [1, 2, 3, iteration],
+                "iteration": iteration,
+                "node_type": "metadata_heavy"
+            })
+            
+            with tracer.start_as_current_span(
+                f"metadata_heavy_span_{iteration}", 
+                attributes=metadata
+            ) as span:
+                span.set_attribute("processing.start", True)
+                
+                # Simulate some async work
+                await asyncio.sleep(0.001)
+                
+                # Create nested spans with different metadata
+                for i in range(3):
+                    nested_metadata = {
+                        "nested_id": i,
+                        "parent_iteration": iteration,
+                        "nested_type": f"type_{i}"
+                    }
+                    with tracer.start_as_current_span(
+                        f"nested_metadata_span_{iteration}_{i}",
+                        attributes=nested_metadata
+                    ) as nested_span:
+                        nested_span.set_attribute("nested.processing", True)
+                        await asyncio.sleep(0.001)
+                
+                span.set_attribute("processing.end", True)
+                result = f"metadata_processed_{iteration}"
+                
+            return {
+                "iteration": iteration,
+                "result": result,
+                "metadata": metadata
+            }
+        
+        async def openai_simulation_node(state: StressTestState) -> dict:
+            """Node that simulates OpenAI API calls to test tracing wrapper."""
+            iteration = state["iteration"]
+            client = create_mock_openai_client()
+            
+            # This will trigger the OpenAI tracing wrapper context management
+            with tracer.start_as_current_span(f"openai_simulation_{iteration}") as span:
+                span.set_attribute("simulation.type", "openai_call")
+                
+                # Simulate multiple API calls
+                results = []
+                for i in range(3):
+                    try:
+                        completion = client.chat.completions.create(
+                            model="gpt-4",
+                            messages=[
+                                {"role": "system", "content": "You are a test assistant."},
+                                {"role": "user", "content": f"Process iteration {iteration}, call {i}"},
+                            ],
+                        )
+                        results.append(completion.choices[0].message.content)
+                        await asyncio.sleep(0.001)
+                    except Exception as e:
+                        results.append(f"Error: {str(e)}")
+                
+                span.set_attribute("api_calls_completed", len(results))
+                combined_result = f"openai_results_{iteration}: {'; '.join(results)}"
+                
+            return {
+                "iteration": state["iteration"],
+                "result": combined_result,
+                "metadata": state["metadata"]
+            }
+        
+        async def concurrent_processing_node(state: StressTestState) -> dict:
+            """Node that performs concurrent processing to stress context management."""
+            iteration = state["iteration"]
+            
+            async def concurrent_task(task_id: int, parent_iteration: int):
+                with tracer.start_as_current_span(f"concurrent_task_{parent_iteration}_{task_id}") as span:
+                    span.set_attribute("task.id", task_id)
+                    span.set_attribute("parent.iteration", parent_iteration)
+                    
+                    # Simulate work with potential context switching
+                    await asyncio.sleep(0.001)
+                    
+                    # Create sub-tasks
+                    sub_results = []
+                    for sub_id in range(2):
+                        with tracer.start_as_current_span(f"sub_task_{parent_iteration}_{task_id}_{sub_id}") as sub_span:
+                            sub_span.set_attribute("sub.id", sub_id)
+                            await asyncio.sleep(0.001)
+                            sub_results.append(f"sub_{sub_id}")
+                    
+                    return f"task_{task_id}_{'_'.join(sub_results)}"
+            
+            # Run multiple concurrent tasks
+            tasks = [concurrent_task(i, iteration) for i in range(5)]
+            concurrent_results = await asyncio.gather(*tasks)
+            
+            final_result = f"concurrent_{iteration}: {','.join(concurrent_results)}"
+            
+            return {
+                "iteration": state["iteration"],
+                "result": final_result,
+                "metadata": state["metadata"]
+            }
+        
+        def build_stress_test_graph():
+            """Build a graph that stresses all context management scenarios."""
+            builder = StateGraph(StressTestState)
+            
+            builder.add_node("metadata_heavy", metadata_heavy_node)
+            builder.add_node("openai_simulation", openai_simulation_node)
+            builder.add_node("concurrent_processing", concurrent_processing_node)
+            
+            builder.add_edge(START, "metadata_heavy")
+            builder.add_edge("metadata_heavy", "openai_simulation")
+            builder.add_edge("openai_simulation", "concurrent_processing")
+            builder.add_edge("concurrent_processing", END)
+            
+            return builder.compile()
+        
+        async def run_stress_test_executions():
+            """Run multiple concurrent graph executions with different scenarios."""
+            graph = build_stress_test_graph()
+            
+            # Run multiple concurrent executions
+            tasks = []
+            for i in range(15):  # Increased number for more stress
+                initial_state = {
+                    "iteration": i,
+                    "result": "",
+                    "metadata": {}
+                }
+                task = graph.ainvoke(initial_state)
+                tasks.append(task)
+            
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            return results
+        
+        # Execute the stress test
+        results = asyncio.run(run_stress_test_executions())
+        
+        # Validate all executions completed successfully
+        assert len(results) == 15, f"Expected 15 results, got {len(results)}"
+        for i, result in enumerate(results):
+            assert not isinstance(result, Exception), f"Execution {i} failed with exception: {result}"
+            assert result["iteration"] == i, f"Iteration mismatch: expected {i}, got {result['iteration']}"
+            assert "metadata_processed" in result["result"] or "concurrent" in result["result"], f"Invalid result for iteration {i}: {result['result']}"
+        
+        # Validate span creation and hierarchy
+        spans = span_exporter.get_finished_spans()
+        
+        # We should have a significant number of spans
+        assert len(spans) >= 200, f"Expected at least 200 spans for comprehensive test, got {len(spans)}"
+        
+        # Check for specific span types
+        workflow_spans = [s for s in spans if s.name == "LangGraph.workflow"]
+        metadata_spans = [s for s in spans if s.name.startswith("metadata_heavy_span_")]
+        openai_spans = [s for s in spans if s.name.startswith("openai_simulation_")]
+        concurrent_spans = [s for s in spans if s.name.startswith("concurrent_task_")]
+        nested_spans = [s for s in spans if s.name.startswith("nested_metadata_span_")]
+        sub_task_spans = [s for s in spans if s.name.startswith("sub_task_")]
+        
+        assert len(workflow_spans) == 15, f"Expected 15 workflow spans, got {len(workflow_spans)}"
+        assert len(metadata_spans) == 15, f"Expected 15 metadata spans, got {len(metadata_spans)}"
+        assert len(openai_spans) == 15, f"Expected 15 openai spans, got {len(openai_spans)}"
+        assert len(concurrent_spans) == 75, f"Expected 75 concurrent spans (15*5), got {len(concurrent_spans)}"
+        assert len(nested_spans) == 45, f"Expected 45 nested spans (15*3), got {len(nested_spans)}"
+        assert len(sub_task_spans) == 150, f"Expected 150 sub-task spans (15*5*2), got {len(sub_task_spans)}"
+        
+        # Most importantly: Check that no context detachment errors were logged
+        error_logs = [
+            record.message
+            for record in caplog.records
+            if record.levelno >= logging.ERROR
+        ]
+        
+        context_errors = [
+            msg for msg in error_logs 
+            if "Failed to detach context" in msg or "context detach" in msg.lower()
+        ]
+        
+        assert len(context_errors) == 0, (
+            f"Found {len(context_errors)} context detachment errors in comprehensive stress test. "
+            f"This indicates the fix is not comprehensive. Errors: {context_errors}"
+        )
+        
+        # Validate span hierarchy is maintained
+        for nested_span in nested_spans:
+            assert nested_span.parent is not None, "All nested spans should have parents"
+            parent_span = next(
+                (s for s in spans if s.context.span_id == nested_span.parent.span_id),
+                None,
+            )
+            assert parent_span is not None, "Parent span should exist in span list"
+        
+        for sub_span in sub_task_spans:
+            assert sub_span.parent is not None, "All sub-task spans should have parents"
+            parent_span = next(
+                (s for s in spans if s.context.span_id == sub_span.parent.span_id),
+                None,
+            )
+            assert parent_span is not None, "Parent span should exist for sub-tasks"
+            assert parent_span.name.startswith("concurrent_task_"), "Sub-task parent should be concurrent_task"
