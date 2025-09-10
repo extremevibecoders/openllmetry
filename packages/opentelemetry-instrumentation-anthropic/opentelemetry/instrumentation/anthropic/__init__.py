@@ -558,9 +558,11 @@ def _wrap(
     end_time = time.time()
 
     if is_streaming_response(response):
-        return build_from_streaming_response(
-            span,
+        from opentelemetry.instrumentation.anthropic.streaming import WrappedStream
+        
+        return WrappedStream(
             response,
+            span,
             instance._client,
             start_time,
             token_histogram,
@@ -679,9 +681,11 @@ async def _awrap(
         raise e
 
     if is_streaming_response(response):
-        return abuild_from_streaming_response(
-            span,
+        from opentelemetry.instrumentation.anthropic.streaming import WrappedAsyncStream
+        
+        return WrappedAsyncStream(
             response,
+            span,
             instance._client,
             start_time,
             token_histogram,

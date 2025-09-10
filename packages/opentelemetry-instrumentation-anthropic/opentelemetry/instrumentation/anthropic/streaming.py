@@ -298,6 +298,73 @@ async def abuild_from_streaming_response(
         span.end()
 
 
+class WrappedStream:
+    """Wrapper for Stream that preserves original methods while adding instrumentation"""
+
+    def __init__(
+        self,
+        original_stream,
+        span,
+        instance,
+        start_time,
+        token_histogram,
+        choice_counter,
+        duration_histogram,
+        exception_counter,
+        event_logger,
+        kwargs,
+    ):
+        self._original_stream = original_stream
+        self._span = span
+        self._instance = instance
+        self._start_time = start_time
+        self._token_histogram = token_histogram
+        self._choice_counter = choice_counter
+        self._duration_histogram = duration_histogram
+        self._exception_counter = exception_counter
+        self._event_logger = event_logger
+        self._kwargs = kwargs
+        self._instrumented_generator = None
+
+    def __getattr__(self, name):
+        """Delegate attribute access to the original stream"""
+        return getattr(self._original_stream, name)
+
+    def __iter__(self):
+        """Return the instrumented iterator"""
+        if self._instrumented_generator is None:
+            self._instrumented_generator = build_from_streaming_response(
+                self._span,
+                self._original_stream,
+                self._instance,
+                self._start_time,
+                self._token_histogram,
+                self._choice_counter,
+                self._duration_histogram,
+                self._exception_counter,
+                self._event_logger,
+                self._kwargs,
+            )
+        return self._instrumented_generator
+
+    def __next__(self):
+        """Return the next item from the instrumented generator"""
+        if self._instrumented_generator is None:
+            self._instrumented_generator = build_from_streaming_response(
+                self._span,
+                self._original_stream,
+                self._instance,
+                self._start_time,
+                self._token_histogram,
+                self._choice_counter,
+                self._duration_histogram,
+                self._exception_counter,
+                self._event_logger,
+                self._kwargs,
+            )
+        return next(self._instrumented_generator)
+
+
 class WrappedMessageStreamManager:
     """Wrapper for MessageStreamManager that handles instrumentation"""
 
@@ -328,10 +395,10 @@ class WrappedMessageStreamManager:
     def __enter__(self):
         # Call the original stream manager's __enter__ to get the actual stream
         stream = self._stream_manager.__enter__()
-        # Return the wrapped stream
-        return build_from_streaming_response(
-            self._span,
+        # Return the wrapped stream that preserves original methods
+        return WrappedStream(
             stream,
+            self._span,
             self._instance,
             self._start_time,
             self._token_histogram,
@@ -344,6 +411,73 @@ class WrappedMessageStreamManager:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         return self._stream_manager.__exit__(exc_type, exc_val, exc_tb)
+
+
+class WrappedAsyncStream:
+    """Wrapper for AsyncStream that preserves original methods while adding instrumentation"""
+
+    def __init__(
+        self,
+        original_stream,
+        span,
+        instance,
+        start_time,
+        token_histogram,
+        choice_counter,
+        duration_histogram,
+        exception_counter,
+        event_logger,
+        kwargs,
+    ):
+        self._original_stream = original_stream
+        self._span = span
+        self._instance = instance
+        self._start_time = start_time
+        self._token_histogram = token_histogram
+        self._choice_counter = choice_counter
+        self._duration_histogram = duration_histogram
+        self._exception_counter = exception_counter
+        self._event_logger = event_logger
+        self._kwargs = kwargs
+        self._instrumented_generator = None
+
+    def __getattr__(self, name):
+        """Delegate attribute access to the original stream"""
+        return getattr(self._original_stream, name)
+
+    def __aiter__(self):
+        """Return the instrumented async iterator"""
+        if self._instrumented_generator is None:
+            self._instrumented_generator = abuild_from_streaming_response(
+                self._span,
+                self._original_stream,
+                self._instance,
+                self._start_time,
+                self._token_histogram,
+                self._choice_counter,
+                self._duration_histogram,
+                self._exception_counter,
+                self._event_logger,
+                self._kwargs,
+            )
+        return self._instrumented_generator
+
+    async def __anext__(self):
+        """Return the next item from the instrumented generator"""
+        if self._instrumented_generator is None:
+            self._instrumented_generator = abuild_from_streaming_response(
+                self._span,
+                self._original_stream,
+                self._instance,
+                self._start_time,
+                self._token_histogram,
+                self._choice_counter,
+                self._duration_histogram,
+                self._exception_counter,
+                self._event_logger,
+                self._kwargs,
+            )
+        return await self._instrumented_generator.__anext__()
 
 
 class WrappedAsyncMessageStreamManager:
@@ -376,10 +510,10 @@ class WrappedAsyncMessageStreamManager:
     async def __aenter__(self):
         # Call the original stream manager's __aenter__ to get the actual stream
         stream = await self._stream_manager.__aenter__()
-        # Return the wrapped stream
-        return abuild_from_streaming_response(
-            self._span,
+        # Return the wrapped stream that preserves original methods
+        return WrappedAsyncStream(
             stream,
+            self._span,
             self._instance,
             self._start_time,
             self._token_histogram,
