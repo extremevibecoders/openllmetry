@@ -455,7 +455,7 @@ def init_instrumentations(
         elif instrument == Instruments.COHERE:
             if init_cohere_instrumentor():
                 instrument_set = True
-        elif instrument == Instruments.CREWAI:
+        elif instrument == Instruments.CREWAI or instrument == Instruments.CREW:
             if init_crewai_instrumentor():
                 instrument_set = True
         elif instrument == Instruments.GOOGLE_GENERATIVEAI:
