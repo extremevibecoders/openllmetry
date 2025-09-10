@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenLLMetry - Open-source LLM Observability</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 0;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+        
+        .nav-links a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        
+        .nav-links a:hover {
+            color: #667eea;
+        }
+        
+        .hero {
+            padding: 120px 0 80px;
+            text-align: center;
+            color: white;
+        }
+        
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+        
+        .hero p {
+            font-size: 1.3rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: #ff6b6b;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255, 107, 107, 0.4);
+        }
+        
+        .features {
+            background: white;
+            padding: 80px 0;
+        }
+        
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            color: #333;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 4rem;
+        }
+        
+        .feature-card {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .feature-card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        
+        .code-section {
+            background: #1a1a1a;
+            color: white;
+            padding: 80px 0;
+        }
+        
+        .code-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: center;
+        }
+        
+        .code-block {
+            background: #2d2d2d;
+            padding: 2rem;
+            border-radius: 10px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            overflow-x: auto;
+        }
+        
+        .code-block pre {
+            margin: 0;
+            color: #e6e6e6;
+        }
+        
+        .keyword { color: #ff79c6; }
+        .string { color: #f1fa8c; }
+        .comment { color: #6272a4; }
+        
+        .integrations {
+            background: #f8f9fa;
+            padding: 80px 0;
+        }
+        
+        .integration-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 3rem;
+        }
+        
+        .integration-item {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s;
+        }
+        
+        .integration-item:hover {
+            transform: translateY(-3px);
+        }
+        
+        .stats {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 80px 0;
+            text-align: center;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+        
+        .stat-item h3 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-item p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        footer {
+            background: #1a1a1a;
+            color: white;
+            padding: 40px 0;
+            text-align: center;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .footer-links a {
+            color: white;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .footer-links a:hover {
+            color: #667eea;
+        }
+        
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .code-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <div class="logo">🔍 OpenLLMetry</div>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#integrations">Integrations</a></li>
+                <li><a href="#getting-started">Get Started</a></li>
+                <li><a href="https://github.com/traceloop/openllmetry">GitHub</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h1>Open-source LLM Observability</h1>
+            <p>Complete observability for your LLM applications with just one line of code</p>
+            <a href="#getting-started" class="cta-button">Get Started Now</a>
+        </div>
+    </section>
+
+    <section class="features" id="features">
+        <div class="container">
+            <h2 class="section-title">Why OpenLLMetry?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>One-Line Setup</h3>
+                    <p>Just add <code>Traceloop.init()</code> and you're tracing your entire LLM application instantly</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔌</div>
+                    <h3>25+ Integrations</h3>
+                    <p>Works with OpenAI, Anthropic, Cohere, Mistral, Ollama, Groq, and many more LLM providers</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🗄️</div>
+                    <h3>Vector DB Support</h3>
+                    <p>Instrument Pinecone, Chroma, Qdrant, Weaviate, Milvus, and LanceDB out of the box</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔗</div>
+                    <h3>Framework Ready</h3>
+                    <p>Native support for LangChain, LlamaIndex, Haystack, CrewAI, and OpenAI Agents</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Enterprise Destinations</h3>
+                    <p>Send traces to Datadog, Honeycomb, New Relic, Grafana, and 15+ other platforms</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3>Privacy First</h3>
+                    <p>Built on OpenTelemetry standards with full control over your data and telemetry</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="code-section" id="getting-started">
+        <div class="container">
+            <div class="code-container">
+                <div>
+                    <h2 style="margin-bottom: 2rem; font-size: 2.5rem;">Get Started in Seconds</h2>
+                    <p style="font-size: 1.2rem; margin-bottom: 2rem; opacity: 0.9;">
+                        Install the SDK and add one line to your code. That's it!
+                    </p>
+                    <div style="margin-bottom: 2rem;">
+                        <h4 style="margin-bottom: 1rem;">✅ Automatic instrumentation</h4>
+                        <h4 style="margin-bottom: 1rem;">✅ Zero configuration required</h4>
+                        <h4 style="margin-bottom: 1rem;">✅ Works with existing code</h4>
+                    </div>
+                </div>
+                <div class="code-block">
+                    <pre><span class="comment"># Install the SDK</span>
+<span class="keyword">pip install</span> <span class="string">traceloop-sdk</span>
+
+<span class="comment"># Add to your code</span>
+<span class="keyword">from</span> traceloop.sdk <span class="keyword">import</span> Traceloop
+
+<span class="comment"># That's it! You're now tracing</span>
+Traceloop.<span class="keyword">init</span>()
+
+<span class="comment"># Your existing LLM code works unchanged</span>
+<span class="keyword">import</span> openai
+client = openai.OpenAI()
+response = client.chat.completions.create(
+    model=<span class="string">"gpt-4"</span>,
+    messages=[{<span class="string">"role"</span>: <span class="string">"user"</span>, <span class="string">"content"</span>: <span class="string">"Hello!"</span>}]
+)</pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="stats">
+        <div class="container">
+            <h2 class="section-title">Trusted by Developers Worldwide</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <h3>25+</h3>
+                    <p>LLM Providers Supported</p>
+                </div>
+                <div class="stat-item">
+                    <h3>15+</h3>
+                    <p>Enterprise Destinations</p>
+                </div>
+                <div class="stat-item">
+                    <h3>6</h3>
+                    <p>Vector Databases</p>
+                </div>
+                <div class="stat-item">
+                    <h3>100%</h3>
+                    <p>Open Source</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="integrations" id="integrations">
+        <div class="container">
+            <h2 class="section-title">Comprehensive Ecosystem Support</h2>
+            
+            <h3 style="text-align: center; margin-bottom: 2rem; color: #667eea;">🤖 LLM Providers</h3>
+            <div class="integration-grid">
+                <div class="integration-item">OpenAI</div>
+                <div class="integration-item">Anthropic</div>
+                <div class="integration-item">Cohere</div>
+                <div class="integration-item">Mistral AI</div>
+                <div class="integration-item">Ollama</div>
+                <div class="integration-item">Groq</div>
+                <div class="integration-item">HuggingFace</div>
+                <div class="integration-item">AWS Bedrock</div>
+                <div class="integration-item">Google Vertex AI</div>
+                <div class="integration-item">Replicate</div>
+                <div class="integration-item">Together AI</div>
+                <div class="integration-item">IBM Watsonx</div>
+            </div>
+
+            <h3 style="text-align: center; margin: 3rem 0 2rem; color: #667eea;">🗄️ Vector Databases</h3>
+            <div class="integration-grid">
+                <div class="integration-item">Pinecone</div>
+                <div class="integration-item">Chroma</div>
+                <div class="integration-item">Qdrant</div>
+                <div class="integration-item">Weaviate</div>
+                <div class="integration-item">Milvus</div>
+                <div class="integration-item">LanceDB</div>
+                <div class="integration-item">Marqo</div>
+            </div>
+
+            <h3 style="text-align: center; margin: 3rem 0 2rem; color: #667eea;">🔗 Frameworks</h3>
+            <div class="integration-grid">
+                <div class="integration-item">LangChain</div>
+                <div class="integration-item">LangGraph</div>
+                <div class="integration-item">LlamaIndex</div>
+                <div class="integration-item">Haystack</div>
+                <div class="integration-item">CrewAI</div>
+                <div class="integration-item">OpenAI Agents</div>
+                <div class="integration-item">LiteLLM</div>
+            </div>
+
+            <h3 style="text-align: center; margin: 3rem 0 2rem; color: #667eea;">📊 Observability Platforms</h3>
+            <div class="integration-grid">
+                <div class="integration-item">Datadog</div>
+                <div class="integration-item">Honeycomb</div>
+                <div class="integration-item">New Relic</div>
+                <div class="integration-item">Grafana</div>
+                <div class="integration-item">Splunk</div>
+                <div class="integration-item">Azure Insights</div>
+                <div class="integration-item">Google Cloud</div>
+                <div class="integration-item">Dynatrace</div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <div class="footer-links">
+                <a href="https://traceloop.com/docs/openllmetry/getting-started-python">Documentation</a>
+                <a href="https://github.com/traceloop/openllmetry">GitHub</a>
+                <a href="https://traceloop.com/slack">Slack Community</a>
+                <a href="https://twitter.com/traceloopdev">Twitter</a>
+            </div>
+            <p>&copy; 2025 OpenLLMetry. Built with ❤️ by Traceloop under Apache 2.0 License</p>
+        </div>
+    </footer>
+
+    <script>
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+
+        // Add scroll effect to header
+        window.addEventListener('scroll', () => {
+            const header = document.querySelector('header');
+            if (window.scrollY > 100) {
+                header.style.background = 'rgba(255, 255, 255, 0.98)';
+            } else {
+                header.style.background = 'rgba(255, 255, 255, 0.95)';
+            }
+        });
+    </script>
+</body>
+</html>
