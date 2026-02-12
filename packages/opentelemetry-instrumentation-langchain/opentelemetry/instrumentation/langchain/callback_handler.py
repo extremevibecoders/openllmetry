@@ -185,9 +185,13 @@ class TraceloopCallbackHandler(BaseCallbackHandler):
                 if child_span.end_time is None:  # avoid warning on ended spans
                     child_span.end()
         span.end()
-        token = self.spans[run_id].token
-        if token:
-            self._safe_detach_context(token)
+        
+        # Safely detach both the main token and association token
+        span_holder = self.spans[run_id]
+        if span_holder.token:
+            self._safe_detach_context(span_holder.token)
+        if span_holder.association_token:
+            self._safe_detach_context(span_holder.association_token)
 
         del self.spans[run_id]
 
@@ -249,6 +253,7 @@ class TraceloopCallbackHandler(BaseCallbackHandler):
         entity_path: str = "",
         metadata: Optional[dict[str, Any]] = None,
     ) -> Span:
+        association_token = None
         if metadata is not None:
             current_association_properties = (
                 context_api.get_value("association_properties") or {}
@@ -260,7 +265,7 @@ class TraceloopCallbackHandler(BaseCallbackHandler):
                 if v is not None
             }
             try:
-                context_api.attach(
+                association_token = context_api.attach(
                     context_api.set_value(
                         "association_properties",
                         {**current_association_properties, **sanitized_metadata},
@@ -295,7 +300,7 @@ class TraceloopCallbackHandler(BaseCallbackHandler):
                 )
 
         self.spans[run_id] = SpanHolder(
-            span, token, None, [], workflow_name, entity_name, entity_path
+            span, token, None, [], workflow_name, entity_name, entity_path, association_token=association_token
         )
 
         if parent_run_id is not None and parent_run_id in self.spans:
@@ -361,16 +366,17 @@ class TraceloopCallbackHandler(BaseCallbackHandler):
 
         # we already have an LLM span by this point,
         # so skip any downstream instrumentation from here
+        suppression_token = None
         try:
-            token = context_api.attach(
+            suppression_token = context_api.attach(
                 context_api.set_value(SUPPRESS_LANGUAGE_MODEL_INSTRUMENTATION_KEY, True)
             )
         except Exception:
             # If context setting fails, continue without suppression token
-            token = None
+            suppression_token = None
 
         self.spans[run_id] = SpanHolder(
-            span, token, None, [], workflow_name, None, entity_path
+            span, suppression_token, None, [], workflow_name, None, entity_path
         )
 
         return span
@@ -459,8 +465,9 @@ class TraceloopCallbackHandler(BaseCallbackHandler):
 
         self._end_span(span, run_id)
         if parent_run_id is None:
+            reset_token = None
             try:
-                context_api.attach(
+                reset_token = context_api.attach(
                     context_api.set_value(
                         SUPPRESS_LANGUAGE_MODEL_INSTRUMENTATION_KEY, False
                     )
@@ -468,6 +475,10 @@ class TraceloopCallbackHandler(BaseCallbackHandler):
             except Exception:
                 # If context reset fails, it's not critical for functionality
                 pass
+            finally:
+                # Safely detach the reset token
+                if reset_token is not None:
+                    self._safe_detach_context(reset_token)
 
     @dont_throw
     def on_chat_model_start(
